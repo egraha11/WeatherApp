@@ -1,0 +1,138 @@
+import java.io.IOException;
+import java.net.URI;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
+import org.json.simple.JSONObject;
+import org.json.simple.JSONValue;
+import org.json.simple.JSONArray;
+import java.io.*;
+import javax.servlet.*;
+import javax.servlet.http.*;
+
+
+
+
+public class Weatherapp {
+    
+    protected void doGet(HttpServletRequest req, HttpServletResponse resp) throws ServletException, IOException {
+        
+
+        resp.setContentType("text/plain");
+        PrintWriter out = resp.getWriter();
+        
+        JSONObject json; //return object, convert to string 
+        
+        String stringJson;
+        
+
+        
+        int days = Integer.parseInt(req.getParameter("days"));
+        String city = req.getParameter("city");
+        city.replace(" ", "%20");
+        
+        String country = req.getParameter("country").toLowerCase();
+                
+        
+        
+        if(days == 1){
+        //current  
+            HttpRequest request = HttpRequest.newBuilder()
+		.uri(URI.create("https://community-open-weather-map.p.rapidapi.com/weather?q=" + city + "%2C" + country + "&lat=0&lon=0&id=2172797&lang=null&units=%22metric%22%20or%20%22imperial%22&mode=xml%2C%20html"))
+		.header("x-rapidapi-key", "c256d71f81mshd4aa85a84c78453p1dff9djsn649fa2915de4")
+		.header("x-rapidapi-host", "community-open-weather-map.p.rapidapi.com")
+		.method("GET", HttpRequest.BodyPublishers.noBody())
+		.build();
+            
+            try{
+                HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+            
+                Object obj=JSONValue.parse(response.body().toString());  
+                JSONObject jsonObject = (JSONObject) obj;
+                
+                json = jsonValue(jsonObject);
+
+                stringJson = json.toString();
+                out.print(stringJson); //pass a json string
+                out.flush();
+                
+            }
+            catch(InterruptedException error){
+                  System.out.println(error.getMessage());
+            }
+
+
+        }
+        
+        else{    
+        //5 day 
+            HttpRequest request = HttpRequest.newBuilder()
+		.uri(URI.create("https://community-open-weather-map.p.rapidapi.com/forecast?q=" + city + "%2C" + country))
+		.header("x-rapidapi-key", "c256d71f81mshd4aa85a84c78453p1dff9djsn649fa2915de4")
+		.header("x-rapidapi-host", "community-open-weather-map.p.rapidapi.com")
+		.method("GET", HttpRequest.BodyPublishers.noBody())
+		.build();
+            
+            try{
+                
+                HttpResponse<String> response = HttpClient.newHttpClient().send(request, HttpResponse.BodyHandlers.ofString());
+        
+            
+                //create a json object
+                Object obj = JSONValue.parse(response.body().toString());
+                JSONObject jsonObject = (JSONObject) obj;
+            
+                JSONArray fullArray = (JSONArray) jsonObject.get("list");
+            
+                json = new JSONObject();
+                
+                for(int i = 0; i < 5; i++){
+                    JSONObject tempJson = jsonValue((JSONObject)fullArray.get(i));
+                    json.put("day" + (i+1), tempJson);
+                }
+                
+                
+                stringJson = json.toString();
+                out.print(stringJson); //pass a json string
+                out.flush();        
+                
+            }
+            catch(InterruptedException error){
+                  System.out.println(error.getMessage());
+            }
+
+        }
+    
+    }
+    
+    
+    private static JSONObject jsonValue(JSONObject obj){
+        JSONObject returnObject = new JSONObject();
+
+        
+        JSONObject mainSection = (JSONObject) obj.get("main");
+        JSONArray secondSectionArray = (JSONArray) obj.get("weather");
+        JSONObject secondSection = (JSONObject) secondSectionArray.get(0);
+        
+        
+        String temp = mainSection.get("temp").toString();
+        String temp_min = mainSection.get("temp_min").toString();
+        String temp_max = mainSection.get("temp_max").toString();
+        String humidity = mainSection.get("humidity").toString();
+            
+            
+        //parse for current general weather condition
+        String main = secondSection.get("main").toString();
+            
+        returnObject.put("temp", temp);
+        returnObject.put("temp_min", temp_min);
+        returnObject.put("temp_max", temp_max);
+        returnObject.put("humidty", humidity);
+        returnObject.put("main", main);
+        
+        return returnObject;
+        
+        
+    }
+     
+}
